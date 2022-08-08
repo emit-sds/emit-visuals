@@ -53,16 +53,19 @@ def main():
         wl = np.array([float(x) for x in envi.open(args.input_file + '.hdr').metadata['wavelength']])
         rgb_inds = get_wl_inds(wl)
 
-    rgb = envi.open(envi_header(args.input_file)).open_memmap(interleave='bip')[...,rgb_inds].copy()
-    rgb_m = np.ma.masked_equal(rgb,np.all(rgb < -1, axis=-1))
-    rgb_m = (rgb_m - rgb_m.min())*255/(rgb_m.max()-rgb_m.min())
+    rgb = envi.open(envi_header(args.input_file)).open_memmap(interleave='bip')[...,rgb_inds].copy().astype(np.float32)
 
-    rgb_m -= np.min(rgb_m ,1 ,axis=(0 ,1))[np.newaxis ,np.newaxis ,:]
-    rgb_m /= np.max(rgb_m ,99,axis=(0 ,1))[np.newaxis ,np.newaxis ,:] * 255
-    rgb_m[rgb_m > 255] = 255
-    rgb_m = np.ma.filled(rgb_m,0).astype('uint8')
+    rgb[np.all(rgb < -1,axis=-1), :] = np.nan
 
-    #scale_ds = gdal.Translate('',args.input_file,format='MEM',scaleParams=[[0.0,1.0,1,255]],noData=0,outputType=gdal.GDT_Byte,bandList=[2,4,1])
+    rgb -= np.nanmin(rgb ,axis=(0 ,1))[np.newaxis ,np.newaxis ,:]
+    rgb /= np.nanmax(rgb ,axis=(0 ,1))[np.newaxis ,np.newaxis ,:]
+    rgb *= 255
+    rgb[rgb > 255] = 255
+    rgb[np.isnan(rgb)] = 0
+    rgb = rgb.astype('uint8')
+    for _b in range(rgb.shape[-1]):
+        rgb[...,_b] = cv.equalizeHist(rgb[...,_b])
+
 
     #scale = scale_ds.ReadAsArray()
     #scale_sum = np.sum(scale,axis=0)
@@ -74,8 +77,8 @@ def main():
     outDataset = driver.Create(args.output_file,source_ds.RasterXSize,source_ds.RasterYSize,3,gdal.GDT_Byte)
     outDataset.SetProjection(source_ds.GetProjection())
     outDataset.SetGeoTransform(source_ds.GetGeoTransform())
-    for _b in range(rgb_m.shape[0]):
-        outDataset.GetRasterBand(_b+1).WriteArray(rgb_m[_b,...])
+    for _b in range(rgb.shape[-1]):
+        outDataset.GetRasterBand(_b+1).WriteArray(rgb[...,_b])
     del outDataset
 
 
