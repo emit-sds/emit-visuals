@@ -46,25 +46,46 @@ def main():
     parser = argparse.ArgumentParser(description="Translate to Rrs. and/or apply masks")
     parser.add_argument('input_file', type=str, metavar='aggregated abundance file')
     parser.add_argument('output_file', type=str, metavar='output file to write')
+    parser.add_argument('--mask_file', type=str, default=None, metavar='l2a mask file')
     args = parser.parse_args()
 
     source_ds = gdal.Open(args.input_file)
     if envi.open(envi_header(args.input_file)).open_memmap(interleave='bip').shape[2] > 3:
         wl = np.array([float(x) for x in envi.open(args.input_file + '.hdr').metadata['wavelength']])
         rgb_inds = get_wl_inds(wl)
+    else:
+        rgb_inds = np.array([0,1,2])
+
+
+    cloud_buffer = None
+    if args.mask_file is not None:
+        cloud_buffer = envi.open(envi_header(args.mask_file)).open_memmap(interleave='bip')[:,:,4].copy()
 
     rgb = envi.open(envi_header(args.input_file)).open_memmap(interleave='bip')[...,rgb_inds].copy().astype(np.float32)
 
     rgb[np.all(rgb < -1,axis=-1), :] = np.nan
 
-    rgb -= np.nanmin(rgb ,axis=(0 ,1))[np.newaxis ,np.newaxis ,:]
-    rgb /= np.nanmax(rgb ,axis=(0 ,1))[np.newaxis ,np.newaxis ,:]
-    rgb *= 255
-    rgb[rgb > 255] = 255
-    rgb[np.isnan(rgb)] = 0
-    rgb = rgb.astype('uint8')
-    for _b in range(rgb.shape[-1]):
-        rgb[...,_b] = cv.equalizeHist(rgb[...,_b])
+    if args.mask_file is None:
+        rgb -= np.nanmin(rgb ,axis=(0 ,1))[np.newaxis ,np.newaxis ,:]
+        rgb /= np.nanmax(rgb ,axis=(0 ,1))[np.newaxis ,np.newaxis ,:]
+        rgb *= 255
+        rgb[rgb > 255] = 255
+        rgb[np.isnan(rgb)] = 0
+        rgb = rgb.astype('uint8')
+        for _b in range(rgb.shape[-1]):
+            rgb[...,_b] = cv.equalizeHist(rgb[...,_b])
+    else:
+        minvals = np.nanpercentile(rgb[np.logical_not(cloud_buffer),:] ,2, axis=0) 
+        print(minvals)
+        rgb -= np.nanpercentile(rgb[np.logical_not(cloud_buffer),:] ,2, axis=0)[np.newaxis ,np.newaxis ,:]
+        maxvals = np.nanpercentile(rgb[np.logical_not(cloud_buffer),:] ,98, 0)
+        print(maxvals)
+        rgb /= np.nanpercentile(rgb[np.logical_not(cloud_buffer),:] ,98, 0)[np.newaxis ,np.newaxis ,:]
+        rgb *= 255
+        rgb[rgb > 255] = 255
+        rgb[rgb <= 0] = 1
+        rgb[np.isnan(rgb)] = 0
+
 
 
     #scale = scale_ds.ReadAsArray()
@@ -74,7 +95,7 @@ def main():
 
     driver = gdal.GetDriverByName('GTiff')
     driver.Register()
-    outDataset = driver.Create(args.output_file,source_ds.RasterXSize,source_ds.RasterYSize,3,gdal.GDT_Byte)
+    outDataset = driver.Create(args.output_file,source_ds.RasterXSize,source_ds.RasterYSize,3,gdal.GDT_Byte, options=['COMPRESS=LZW'])
     outDataset.SetProjection(source_ds.GetProjection())
     outDataset.SetGeoTransform(source_ds.GetGeoTransform())
     for _b in range(rgb.shape[-1]):
