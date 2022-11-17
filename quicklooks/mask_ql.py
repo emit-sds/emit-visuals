@@ -41,27 +41,28 @@ def main():
 
     source_ds = gdal.Open(args.input_file)
 
-    clouds = envi.open(envi_header(args.mask_file)).open_memmap(interleave='bip')
+    clouds = envi.open(envi_header(args.input_file)).open_memmap(interleave='bip')
 
-    rgb = np.zeros((clouds.shape[0],clouds.shape[1],3),dtype='uint8')
+    rgb = np.zeros((clouds.shape[0],clouds.shape[1],3))
+    rgb[np.all(rgb < -1,axis=-1), :] = np.nan
 
-    cloud_buffer = None
-    if args.mask_file is not None:
+    # Black Buffer
+    rgb[clouds[:,:,4] == 1,:] = 1
 
-        # Black Buffer
-        rgb[clouds[:,:,4] == 1,:] = 1
+    # Grey Cirrus
+    rgb[clouds[:,:,1] == 1,:] = np.array([128,128,128])[np.newaxis,:]
 
-        # Grey Cirrus
-        rgb[clouds[:,:,1] == 1,:] = np.array([128,128,128])[np.newaxis,:]
+    # Blue Water
+    rgb[clouds[:,:,2] == 1,:] = np.array([1,1,255])[np.newaxis,:]
 
-        # Blue Water
-        rgb[clouds[:,:,2] == 1,:] = np.array([1,1,255])[np.newaxis,:]
+    # Red Aerosol
+    rgb[clouds[:,:,5] > 0.4,:] = np.array([255,1,1])[np.newaxis,:]
 
-        # Red Aerosol
-        rgb[clouds[:,:,5] > 0.4,:] = np.array([255,1,1])[np.newaxis,:]
+    # White Cloud
+    rgb[clouds[:,:,0] == 1,:] = np.array([255,255,255])[np.newaxis,:]
 
-        # White Cloud
-        rgb[clouds[:,:,0] == 1,:] = np.array([255,255,255])[np.newaxis,:]
+    rgb[np.isnan(rgb)] = 0
+    rgb = rgb.astype('uint8')
 
 
     driver = gdal.GetDriverByName('GTiff')

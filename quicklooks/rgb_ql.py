@@ -76,11 +76,13 @@ def main():
             rgb[...,_b] = cv.equalizeHist(rgb[...,_b])
     else:
         minvals = np.nanpercentile(rgb[np.logical_not(cloud_buffer),:] ,2, axis=0) 
+        minvals[minvals < 0] = 0
         print(minvals)
-        rgb -= np.nanpercentile(rgb[np.logical_not(cloud_buffer),:] ,2, axis=0)[np.newaxis ,np.newaxis ,:]
+        rgb -= minvals[np.newaxis ,np.newaxis ,:]
         maxvals = np.nanpercentile(rgb[np.logical_not(cloud_buffer),:] ,98, 0)
+        maxvals[maxvals > 1] = 1
         print(maxvals)
-        rgb /= np.nanpercentile(rgb[np.logical_not(cloud_buffer),:] ,98, 0)[np.newaxis ,np.newaxis ,:]
+        rgb /= maxvals[np.newaxis ,np.newaxis ,:]
         rgb *= 255
         rgb[rgb > 255] = 255
         rgb[rgb <= 0] = 1
