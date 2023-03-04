@@ -271,7 +271,7 @@ def main():
     if args.coord_circ is not None:
         plt.scatter(args.coord_circ[1],args.coord_circ[0],edgecolors='grey',facecolors='none', marker='o')
     plt.axis('off')
-    plt.title('Dominant Mineral Abundances')
+    plt.title(f'Dominant Mineral Abundances - 2$\mu$m')
     #plt.legend(handles=leg_handles_noio, fontsize=8, loc='lower right')
 
 
@@ -301,7 +301,7 @@ def main():
     ax = fig.add_subplot(gs[1,1])
     im = plt.imshow(output_noio/255.)
     plt.axis('off')
-    plt.title('Mineral Abundances')
+    plt.title(f'Mineral Abundances - 2 $\mu$m')
     plt.legend(handles=leg_handles_noio, fontsize=8, loc='lower right')
 
 

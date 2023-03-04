@@ -12,13 +12,21 @@ from spectral.io import envi
 
 def main():
 
-    dates = np.genfromtxt('days.txt',dtype=str)
+    parser = argparse.ArgumentParser(description="Run visuals workflow")
+    parser.add_argument('dates', type=str, nargs='+')
+    args = parser.parse_args()
+
+    if args.dates[0] == 'all':
+        dates = [os.path.basename(x) for x in glob.glob('/beegfs/store/emit/ops/data/acquisitions/202*')]
+    else:
+        dates = args.dates
+
     for date in dates:
         subprocess.call(f'find ortho/rgb_ql | grep {date} | grep l1b > temporal_line_lists/{date}_rgb.txt',shell=True)
-        od_date = f'{date[:4]}-{date[4:6]}-{date[6:8]}T00_00_00'
+        od_date = f'{date[:4]}-{date[4:6]}-{date[6:8]}T00_00_01Z-to-{date[:4]}-{date[4:6]}-{date[6:8]}T23_59_59Z'
         out_fold = f'temporal_tiled_visuals/rgb_mosaic_temporal_RGB/{od_date}'
         subprocess.call(f'mkdir {out_fold}',shell=True)
-        subprocess.call(f'sbatch -N 1 -c 40 -p debug --mem=180G --wrap="python daily_tiler.py temporal_line_lists/{date}_rgb.txt {out_fold}"',shell=True)
+        subprocess.call(f'sbatch -N 1 -c 40 -p standard --mem=180G --wrap="python daily_tiler.py temporal_line_lists/{date}_rgb.txt {out_fold}"',shell=True)
 
     #parser = argparse.ArgumentParser(description="Run visuals workflow")
     ##parser.add_argument('input_file_list', type=str)

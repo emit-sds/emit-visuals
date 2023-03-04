@@ -12,12 +12,17 @@ from emit_utils.file_checks import envi_header
 def main():
 
     parser = argparse.ArgumentParser(description="Run visuals workflow")
-    #parser.add_argument('input_file_list', type=str)
+    parser.add_argument('date', type=str, nargs='+')
     args = parser.parse_args()
 
 
     #loclist = np.genfromtxt(args.input_file_list,dtype=str)
-    loclist = sorted(glob.glob('/beegfs/store/emit/ops/data/acquisitions/*/*/l1b/*_l1b_loc_*.img'))
+    if args.date[0] == 'all':
+        loclist = sorted(glob.glob('/beegfs/store/emit/ops/data/acquisitions/*/*/l1b/*_l1b_loc_*.img'))
+    else: 
+        loclist = []
+        for date in args.date: 
+            loclist.extend(sorted(glob.glob(f'/beegfs/store/emit/ops/data/acquisitions/{date}/*/l1b/*_l1b_loc_*.img')))
 
     badlist = ['emit20220731t095903_o21207_s000','emit20220731t052033_o21204_s000','emit20220728t025143_o20901_s001']
 
@@ -73,7 +78,8 @@ def main():
         #    cmd_str+= f'python /beegfs/store/emit/ops/repos/emit-sds-l3/apply_glt.py {glt} {sma} {ortho_sma} -n_cores 40 -one_based_glt 1; '
         #if os.path.isfile(ortho_rgb) is False:
         if os.path.isfile(ortho_rgb) is False:
-            cmd_str+= f'python /beegfs/store/emit/ops/repos/emit-sds-l3/apply_glt.py {glt} {rdn} {ortho_rgb} -n_cores 40 -one_based_glt 1 -b 37 25 13; '
+            #cmd_str+= f'python /beegfs/store/emit/ops/repos/emit-sds-l3/apply_glt.py {glt} {rdn} {ortho_rgb} -n_cores 40 -one_based_glt 1 -b 37 25 13; '
+            cmd_str+= f'python /beegfs/scratch/brodrick/emit/emit-visuals/apply_glt.py {glt} {rdn} {ortho_rgb} -b 37 25 13; '
         #if os.path.isfile(ortho_mask) is False:
         #    cmd_str+= f'python /beegfs/store/emit/ops/repos/emit-sds-l3/apply_glt.py {glt} {mask} {ortho_mask} -n_cores 40 -one_based_glt 1; '
 

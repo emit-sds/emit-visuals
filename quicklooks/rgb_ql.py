@@ -49,6 +49,10 @@ def main():
     parser.add_argument('--mask_file', type=str, default=None, metavar='l2a mask file')
     args = parser.parse_args()
 
+    path = os.environ['PATH']
+    path = path.replace('\Library\\bin;',':') 
+    os.environ['PATH'] = path
+
     source_ds = gdal.Open(args.input_file)
     if envi.open(envi_header(args.input_file)).open_memmap(interleave='bip').shape[2] > 3:
         wl = np.array([float(x) for x in envi.open(args.input_file + '.hdr').metadata['wavelength']])

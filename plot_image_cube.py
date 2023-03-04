@@ -139,20 +139,20 @@ def main():
     rgb = data_cube[:,:,front_bands].copy().astype(float )
 
     #rgb /= np.sum(rgb,axis=2)[:,:,np.newaxis]
-    rgb -= np.percentile(rgb ,2 ,axis=(0 ,1))[np.newaxis ,np.newaxis ,:]
-    rgb /= np.percentile(rgb ,98,axis=(0 ,1))[np.newaxis ,np.newaxis ,:]
+    #rgb -= np.percentile(rgb ,2 ,axis=(0 ,1))[np.newaxis ,np.newaxis ,:]
+    #rgb /= np.percentile(rgb ,70,axis=(0 ,1))[np.newaxis ,np.newaxis ,:]
     
     #rgb[np.any(rgb) > 1] = 0.999
     #rgb[np.any(rgb) < 0] = 0
-    #rgb -= np.nanmin(rgb ,axis=(0 ,1))[np.newaxis ,np.newaxis ,:]
-    #rgb /= np.nanmax(rgb ,axis=(0 ,1))[np.newaxis ,np.newaxis ,:]
-    #rgb *= 255
-    #rgb[rgb > 255] = 255
-    #rgb[np.isnan(rgb)] = 0
-    #rgb = rgb.astype('uint8')
-    #for _b in range(rgb.shape[-1]):
-    #    rgb[...,_b] = cv.equalizeHist(rgb[...,_b])
-    #rgb = rgb.astype(np.float32)/255.
+    rgb -= np.nanmin(rgb ,axis=(0 ,1))[np.newaxis ,np.newaxis ,:]
+    rgb /= np.nanmax(rgb ,axis=(0 ,1))[np.newaxis ,np.newaxis ,:]
+    rgb *= 255
+    rgb[rgb > 255] = 255
+    rgb[np.isnan(rgb)] = 0
+    rgb = rgb.astype('uint8')
+    for _b in range(rgb.shape[-1]):
+        rgb[...,_b] = cv.equalizeHist(rgb[...,_b])
+    rgb = rgb.astype(np.float32)/255.
 
 
 
