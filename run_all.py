@@ -15,6 +15,9 @@ def main():
     parser.add_argument('date', type=str, nargs='+')
     args = parser.parse_args()
 
+    path = os.environ['PATH']
+    path = path.replace('\Library\\bin;',':')
+    os.environ['PATH'] = path
 
     #loclist = np.genfromtxt(args.input_file_list,dtype=str)
     if args.date[0] == 'all':

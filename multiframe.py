@@ -71,7 +71,7 @@ def main():
     else:
         rgb_inds = np.array([0,1,2])
     rgb = envi.open(envi_header(args.rfl_file)).open_memmap(interleave='bip')[...,rgb_inds].copy()
-    mask = np.any(rgb < 0, axis=(1,2))
+    mask = np.any(rgb < 0, axis=2)
     rgb[mask,...] = np.nan
     #rgb[np.any(rgb) > 1] = 0.999
     #rgb[np.any(rgb) < 0] = 0
@@ -85,7 +85,7 @@ def main():
     #    rgb[...,_b] = cv.equalizeHist(rgb[...,_b])
 
     rgb -= np.nanpercentile(rgb ,2, axis=(0 ,1))[np.newaxis ,np.newaxis ,:]
-    rgb /= np.nanpercentile(rgb ,99.5,axis=(0 ,1))[np.newaxis ,np.newaxis ,:]
+    rgb /= np.nanpercentile(rgb ,80,axis=(0 ,1))[np.newaxis ,np.newaxis ,:]
 
 
     sa_ds = envi.open(envi_header(args.sa_file))
@@ -141,7 +141,7 @@ def main():
             del colorlist_no_io[key]
         else:
             del colorlist_io[key]
-    iron_oxide_idx = np.array([x in ['goethite','hematite'] for x in band_names])
+    iron_oxide_idx = np.array([x.lower() in ['goethite','hematite'] for x in band_names])
     
 
 
@@ -166,7 +166,7 @@ def main():
     for _v, val in enumerate(un_vals):
         print(f'{_v}/{len(un_vals)-1})')
         subset = np.logical_and(maxband == val, sa[..., val] > 0, np.logical_not(total_mask))
-        minname = band_names[val]
+        minname = band_names[val].lower()
         
         if np.sum(subset) > 1:
 
@@ -194,7 +194,7 @@ def main():
     for _v, val in enumerate(un_vals):
         print(f'{_v}/{len(un_vals)-1})')
         subset = np.logical_and(maxband == val, sa[...,iron_oxide_idx][...,val] > 0, np.logical_not(total_mask))
-        minname = np.array(band_names)[iron_oxide_idx][val]
+        minname = np.array(band_names)[iron_oxide_idx][val].lower()
         
         if np.sum(subset) > 0:
 
@@ -223,7 +223,7 @@ def main():
     for _v, val in enumerate(un_vals):
         print(f'{np.array(band_names)[np.logical_not(iron_oxide_idx)][val]} - {_v}/{len(un_vals)-1})')
         subset = np.logical_and(maxband == val, sa[...,np.logical_not(iron_oxide_idx)][..., val] > 0, np.logical_not(total_mask))
-        minname = np.array(band_names)[np.logical_not(iron_oxide_idx)][val]
+        minname = np.array(band_names)[np.logical_not(iron_oxide_idx)][val].lower()
         
         if np.sum(subset) > 1:
 
@@ -256,7 +256,11 @@ def main():
     if args.coord_circ is not None:
         plt.scatter(args.coord_circ[1],args.coord_circ[0],edgecolors='grey',facecolors='none', marker='o')
     plt.axis('off')
-    plt.title(f'RGB [{round(wl_at_rgb[0])} nm, {round(wl_at_rgb[1])} nm, {round(wl_at_rgb[2])} nm]')
+
+    if envi.open(envi_header(args.rfl_file)).open_memmap(interleave='bip').shape[2] > 3:
+        plt.title(f'RGB [{round(wl_at_rgb[0])} nm, {round(wl_at_rgb[1])} nm, {round(wl_at_rgb[2])} nm]')
+    else:
+        plt.title(f'RGB')
 
     ax = fig.add_subplot(gs[0,1])
     im = plt.imshow(output_io/255.)
@@ -264,7 +268,7 @@ def main():
         plt.scatter(args.coord_circ[1],args.coord_circ[0],edgecolors='grey',facecolors='none', marker='o')
     plt.axis('off')
     plt.title('Dominant Mineral Abundances - Iron Oxides')
-    #plt.legend(handles=leg_handles_io, fontsize=8, loc='lower right')
+    plt.legend(handles=leg_handles_io, fontsize=8, loc='lower right')
 
     ax = fig.add_subplot(gs[0,2])
     im = plt.imshow(output_noio/255.)
@@ -272,10 +276,10 @@ def main():
         plt.scatter(args.coord_circ[1],args.coord_circ[0],edgecolors='grey',facecolors='none', marker='o')
     plt.axis('off')
     plt.title(f'Dominant Mineral Abundances - 2$\mu$m')
-    #plt.legend(handles=leg_handles_noio, fontsize=8, loc='lower right')
+    plt.legend(handles=leg_handles_noio, fontsize=8, loc='lower right')
 
 
-    plt.savefig(os.path.join(args.outbase, os.path.splitext(os.path.basename(args.rfl_file))[0] + '_3panel.png'), bbox_inches='tight', dpi=200)
+    plt.savefig(os.path.join(args.outbase, os.path.splitext(os.path.basename(args.rfl_file))[0] + '_3panel.png'), bbox_inches='tight', dpi=400)
 
 
 

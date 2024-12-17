@@ -140,10 +140,10 @@ def main():
 
     #rgb /= np.sum(rgb,axis=2)[:,:,np.newaxis]
     #rgb -= np.percentile(rgb ,2 ,axis=(0 ,1))[np.newaxis ,np.newaxis ,:]
-    #rgb /= np.percentile(rgb ,70,axis=(0 ,1))[np.newaxis ,np.newaxis ,:]
+    #rgb /= np.percentile(rgb ,95,axis=(0 ,1))[np.newaxis ,np.newaxis ,:]
     
-    #rgb[np.any(rgb) > 1] = 0.999
-    #rgb[np.any(rgb) < 0] = 0
+    rgb[np.any(rgb) > 1] = 0.999
+    rgb[np.any(rgb) < 0] = 0
     rgb -= np.nanmin(rgb ,axis=(0 ,1))[np.newaxis ,np.newaxis ,:]
     rgb /= np.nanmax(rgb ,axis=(0 ,1))[np.newaxis ,np.newaxis ,:]
     rgb *= 255
@@ -167,7 +167,7 @@ def main():
     # Top
     top = data_cube[0,...].copy().astype(float )
     #top = (top[:,2::2] + top[:,1::2])/2.
-    top[top < 0] = 0
+    top[top < 0] = 0.001
     if args.cube_type == 'radiance':
         top[top!=0] = np.log(top[top!=0])
 
@@ -185,7 +185,7 @@ def main():
         scale_array.append(tmp_im)
     scale_array = np.vstack(scale_array)
     offset = np.nanpercentile(scale_array,3)
-    scale = np.nanpercentile(scale_array - offset,99)
+    scale = np.nanpercentile(scale_array - offset,98)
 
     if args.remove_water_features:
         for we in water_edges:

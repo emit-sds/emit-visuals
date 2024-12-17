@@ -16,6 +16,10 @@ def main():
     parser.add_argument('dates', type=str, nargs='+')
     args = parser.parse_args()
 
+    path = os.environ['PATH']
+    path = path.replace('\Library\\bin;',':')
+    os.environ['PATH'] = path
+
     if args.dates[0] == 'all':
         dates = [os.path.basename(x) for x in glob.glob('/beegfs/store/emit/ops/data/acquisitions/202*')]
     else:
@@ -26,7 +30,7 @@ def main():
         od_date = f'{date[:4]}-{date[4:6]}-{date[6:8]}T00_00_01Z-to-{date[:4]}-{date[4:6]}-{date[6:8]}T23_59_59Z'
         out_fold = f'temporal_tiled_visuals/rgb_mosaic_temporal_RGB/{od_date}'
         subprocess.call(f'mkdir {out_fold}',shell=True)
-        subprocess.call(f'sbatch -N 1 -c 40 -p standard --mem=180G --wrap="python daily_tiler.py temporal_line_lists/{date}_rgb.txt {out_fold}"',shell=True)
+        subprocess.call(f'sbatch -N 1 -c 40 -p standard --job-name vis_tile_{date} --mem=180G --wrap="python daily_tiler.py temporal_line_lists/{date}_rgb.txt {out_fold}"',shell=True)
 
     #parser = argparse.ArgumentParser(description="Run visuals workflow")
     ##parser.add_argument('input_file_list', type=str)

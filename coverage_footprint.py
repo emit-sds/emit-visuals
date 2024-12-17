@@ -14,6 +14,7 @@ import yaml
 import glob
 import json
 import ray
+import pandas as pd
 
 @ray.remote
 def get_single_footprint(glt, index, length, previous_build, overwrite, read_clouds=False):
@@ -30,8 +31,7 @@ def get_single_footprint(glt, index, length, previous_build, overwrite, read_clo
         #gring = [[gring[x], gring[x+1]] for x in range(0,len(gring),2)]
         #gring.append([gring[0][0],gring[0][1]])
 
-
-        raw_meta = envi.open(glt.replace('l1b','l1a').replace('glt','raw')).metadata
+        raw_meta = envi.read_envi_header(glt.replace('l1b','l1a').replace('glt','raw'))
         dcid = os.path.basename(raw_meta['emit pge input files'][0]).split('_')[0]
         st = os.path.basename(raw_meta['emit acquisition start time'])[:19] + 'Z'
         et = os.path.basename(raw_meta['emit acquisition stop time'])[:19] + 'Z'
@@ -109,33 +109,34 @@ def get_single_footprint(glt, index, length, previous_build, overwrite, read_clo
                      "properties":{"fid":fid, "dcid": dcid,"start_time":st, "end_time":et}, "type":"Feature"}
 
         for _o, on in enumerate(obs_names):
-            loc_entry['properties'][on] = obs_centerline[_o]
+            loc_entry['properties'][on] = np.round(obs_centerline[_o],2)
 
         for _o, on in enumerate(loc_names):
-            loc_entry['properties'][on] = loc_centerline[_o]
+            if loc_names == 'Elevation (m)':
+                loc_entry['properties'][on] = np.round(loc_centerline[_o], 2)
 
         if aod is not None:
-            loc_entry['properties']['Retrieved AOT Median'] = np.median(aod)
-            loc_entry['properties']['Retrieved AOT Min'] = np.min(aod)
-            loc_entry['properties']['Retrieved AOT Max'] = np.max(aod)
+            loc_entry['properties']['Retrieved AOT Median'] = np.round(float(np.median(aod)),2)
+            #loc_entry['properties']['Retrieved AOT Min'] = np.round(np.min(aod),2)
+            #loc_entry['properties']['Retrieved AOT Max'] = np.round(np.max(aod),2)
         if h2o is not None:
-            loc_entry['properties']['Retrieved WV Median'] = np.median(h2o)
-            loc_entry['properties']['Retrieved WV Min'] = np.min(h2o)
-            loc_entry['properties']['Retrieved WV Max'] = np.max(h2o)
+            loc_entry['properties']['Retrieved WV Median'] = np.round(float(np.median(h2o)),2)
+            #loc_entry['properties']['Retrieved WV Min'] = np.round(np.min(h2o),2)
+            #loc_entry['properties']['Retrieved WV Max'] = np.round(np.max(h2o),2)
         if ele is not None:
-            loc_entry['properties']['Retrieved Ele. Median'] = np.median(ele)
-            loc_entry['properties']['Retrieved Ele. Min'] = np.min(ele)
-            loc_entry['properties']['Retrieved Ele. Max'] = np.max(ele)
-        if l2a_quality is not None:
-            loc_entry['properties']['L2A Quality 50'] = l2a_quality[0]
-            loc_entry['properties']['L2A Quality 95'] = l2a_quality[1]
-            loc_entry['properties']['L2A Quality 99.9'] = l2a_quality[2]
+            loc_entry['properties']['Retrieved Ele. Median'] = np.round(float(np.median(ele)),2)
+            #loc_entry['properties']['Retrieved Ele. Min'] = np.round(np.min(ele),2)
+            #loc_entry['properties']['Retrieved Ele. Max'] = np.round(np.max(ele),2)
+        #if l2a_quality is not None:
+        #    loc_entry['properties']['L2A Quality 50'] = np.round(l2a_quality[0],2)
+        #    loc_entry['properties']['L2A Quality 95'] = np.round(l2a_quality[1],2)
+        #    loc_entry['properties']['L2A Quality 99.9'] = np.round(l2a_quality[2],2)
         if cirrus is not None:
-            loc_entry['properties']['Cloud Fraction'] = cloud
-            loc_entry['properties']['Cloud + Cirrus Fraction'] = cirrus
-            loc_entry['properties']['Clouds & Buffer Fraction'] = buff
-            loc_entry['properties']['Screened Onboard Fraction'] = screened
-            loc_entry['properties']['Total Cloud Fraction'] = total_clouds
+            loc_entry['properties']['Cloud Fraction'] = np.round(cloud,2)
+            loc_entry['properties']['Cloud + Cirrus Fraction'] = np.round(cirrus,2)
+            loc_entry['properties']['Clouds & Buffer Fraction'] = np.round(buff,2)
+            loc_entry['properties']['Screened Onboard Fraction'] = np.round(screened,2)
+            loc_entry['properties']['Total Cloud Fraction'] = np.round(total_clouds,2)
 
         loc_entry['properties']['Request Link'] = f'https://docs.google.com/forms/d/e/1FAIpQLSc9pitlAVhrOhjkZrgo2At2DN3L6-wWhje8qEglGnSfcUnGcg/viewform?usp=pp_url&entry.1512332345={fid}'
         loc_entry['properties']['Orbit'] = fid.split('_')[1][1:]
@@ -199,9 +200,12 @@ def main():
     parser.add_argument('--read_clouds', type=int, default='1')
     args = parser.parse_args()
 
-    glt_files = sorted(glob.glob('/beegfs/store/emit/ops/data/acquisitions/*/*/l1b/*_l1b_glt_*.hdr'))
     out_file = f'{args.out_base}.json'
     out_file_pub = f'{args.out_base}_pub.json'
+    out_file_geo = f'{args.out_base}_geo.json'
+    out_file_db = f'{args.out_base}_db.csv'
+
+    glt_files = sorted(glob.glob('/beegfs/store/emit/ops/data/acquisitions/*/*/l1b/*_l1b_glt_*.hdr'))
 
     previous_build = None
     if os.path.isfile(out_file):
@@ -228,15 +232,29 @@ def main():
         res[0]['properties']['DAAC_index'] = daac_index
         if 'L1B Radiance Download' in list(res[0]['properties'].keys()):
             daac_index += 1
-
         outdict['features'].append(res[0])
 
     with open(out_file, 'w') as fout:
         fout.write(json.dumps(outdict, cls=SerialEncoder, indent=2, sort_keys=True)) 
-        
     subprocess.call(f'cat {out_file} | grep -v "Request Link" > {out_file_pub}',shell=True)
 
 
+    outdict = json.load(open(out_file_pub))
+    out_df = pd.DataFrame()
+    for _res, res in enumerate(outdict['features']):
+
+        #header.extend([x for x in res['properties'].keys() if x not in header])
+        out_df = out_df.append(res['properties'],ignore_index = True)
+
+        ls = res['properties']['style']
+        outdict['features'][_res]['properties'] = {'style': ls}
+
+    with open(out_file_geo, 'w') as fout:
+        fout.write(json.dumps(outdict, cls=SerialEncoder, indent=2, sort_keys=True)) 
+
+
+
+    out_df.to_csv(out_file_db,index=False)
 
 
 
